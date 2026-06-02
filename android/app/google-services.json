@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "228661932314",
+    "project_id": "watchedmovies-394dc",
+    "storage_bucket": "watchedmovies-394dc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228661932314:android:3e754473e47359e1787ca3",
+        "android_client_info": {
+          "package_name": "com.watchedmovies.watched_movies"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "228661932314-u0d0rrrdk86k10ndb8uv58mc2jk9t0hg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.watchedmovies.watched_movies",
+            "certificate_hash": "dc4b5e2acf04dc9f9995d028a754742a49f9bcef"
+          }
+        },
+        {
+          "client_id": "228661932314-eeqtfakpt2deghl6qpe4aacg2srh4r0k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKfwY9DkpMIN8aIm2BD9i_Cg0tcwEtRgE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "228661932314-eeqtfakpt2deghl6qpe4aacg2srh4r0k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

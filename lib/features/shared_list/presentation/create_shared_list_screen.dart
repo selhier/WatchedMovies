@@ -8,7 +8,8 @@ import '../data/shared_list_repository.dart';
 
 /// Screen to create a new shared recommendation list
 class CreateSharedListScreen extends ConsumerStatefulWidget {
-  const CreateSharedListScreen({super.key});
+  final SharedList? existingList;
+  const CreateSharedListScreen({super.key, this.existingList});
 
   @override
   ConsumerState<CreateSharedListScreen> createState() =>
@@ -21,6 +22,16 @@ class _CreateSharedListScreenState
   final _descController = TextEditingController();
   final Set<int> _selectedMovieIds = {};
   bool _isCreating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingList != null) {
+      _titleController.text = widget.existingList!.title;
+      _descController.text = widget.existingList!.description;
+      _selectedMovieIds.addAll(widget.existingList!.movieIds);
+    }
+  }
 
   @override
   void dispose() {
@@ -38,7 +49,7 @@ class _CreateSharedListScreenState
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        title: const Text('Create Shared List'),
+        title: Text(widget.existingList == null ? 'Create Shared List' : 'Edit Shared List'),
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => context.pop(),
@@ -188,8 +199,10 @@ class _CreateSharedListScreenState
                       )
                     : const Icon(Icons.share_rounded),
                 label: Text(_isCreating
-                    ? 'Creating...'
-                    : 'Create & Share (${_selectedMovieIds.length} movies)'),
+                    ? 'Saving...'
+                    : (widget.existingList == null
+                        ? 'Create & Share (${_selectedMovieIds.length} movies)'
+                        : 'Save Changes (${_selectedMovieIds.length} movies)')),
               ),
             ),
 
@@ -205,21 +218,37 @@ class _CreateSharedListScreenState
     setState(() => _isCreating = true);
 
     try {
-      await ref
-          .read(sharedListRepositoryProvider)
-          .createList(
-            ownerId: user.uid,
-            ownerName: user.displayName ?? 'Anonymous',
-            title: _titleController.text,
-            description: _descController.text,
-            movieIds: _selectedMovieIds.toList(),
+      if (widget.existingList != null) {
+        await ref
+            .read(sharedListRepositoryProvider)
+            .updateList(
+              widget.existingList!.id,
+              title: _titleController.text,
+              description: _descController.text,
+              movieIds: _selectedMovieIds.toList(),
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shared list updated!')),
           );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Shared list created!')),
-        );
-        context.pop();
+          context.pop();
+        }
+      } else {
+        await ref
+            .read(sharedListRepositoryProvider)
+            .createList(
+              ownerId: user.uid,
+              ownerName: user.displayName ?? 'Anonymous',
+              title: _titleController.text,
+              description: _descController.text,
+              movieIds: _selectedMovieIds.toList(),
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Shared list created!')),
+          );
+          context.pop();
+        }
       }
     } catch (e) {
       if (mounted) {

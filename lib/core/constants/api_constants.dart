@@ -9,8 +9,11 @@ class ApiConstants {
   static const String tmdbImageBaseUrl = 'https://image.tmdb.org/t/p/';
 
   // Access token for TMDB API (read-only)
-  static String get tmdbAccessToken => dotenv.env['TMDB_ACCESS_TOKEN'] ?? '';
-  static String get tmdbApiKey => dotenv.env['TMDB_API_KEY'] ?? '';
+  static String get tmdbAccessToken =>
+      dotenv.env['TMDB_ACCESS_TOKEN'] ??
+      'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI2MmMyZjRjYzk1YzY0Yjk2NGRiNjU1ZjU4NjE1ODkxOSIsIm5iZiI6MTYxNjIyNTQ4OS41MzIsInN1YiI6IjYwNTVhNGQxMmFjNDk5MDA3NTZiZGQ5MiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.2D7UkX7t0sVXH_930ZaPAkn7ye7IzbWTlsG8WFs5wkM';
+  static String get tmdbApiKey =>
+      dotenv.env['TMDB_API_KEY'] ?? '62c2f4cc95c64b964db655f586158919';
 
   // ─── Image Sizes ──────────────────────────────────────────
   static const String posterSmall = 'w185';

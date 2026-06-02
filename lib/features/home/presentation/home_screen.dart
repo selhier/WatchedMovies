@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -100,19 +101,61 @@ class HomeScreen extends ConsumerWidget {
 }
 
 /// Trending movies horizontal carousel with backdrop images
-class _TrendingCarousel extends ConsumerWidget {
+class _TrendingCarousel extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TrendingCarousel> createState() => _TrendingCarouselState();
+}
+
+class _TrendingCarouselState extends ConsumerState<_TrendingCarousel> {
+  late final PageController _pageController;
+  Timer? _timer;
+  int _currentPage = 0;
+  int _itemCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.88);
+    _pageController.addListener(() {
+      if (_pageController.page != null) {
+        _currentPage = _pageController.page!.round();
+      }
+    });
+    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_pageController.hasClients && _itemCount > 0) {
+        int nextPage = _currentPage + 1;
+        if (nextPage >= _itemCount) {
+          nextPage = 0;
+        }
+        _pageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.fastOutSlowIn,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final trending = ref.watch(trendingMoviesProvider);
 
     return trending.when(
       data: (movies) {
         if (movies.isEmpty) return const SizedBox();
+        _itemCount = movies.length.clamp(0, 10);
         return SizedBox(
           height: 220,
           child: PageView.builder(
-            controller: PageController(viewportFraction: 0.88),
-            itemCount: movies.length.clamp(0, 10),
+            controller: _pageController,
+            itemCount: _itemCount,
             itemBuilder: (context, index) {
               final movie = movies[index];
               return GestureDetector(

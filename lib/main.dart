@@ -13,7 +13,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
   
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: "env");
+  } catch (_) {
+    // On web, dotenv may fail to load — fallback values in ApiConstants handle this
+  }
 
   // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();

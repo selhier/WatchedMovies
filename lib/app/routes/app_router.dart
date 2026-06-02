@@ -8,6 +8,8 @@ import '../../features/my_lists/presentation/my_lists_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/movie_detail/presentation/movie_detail_screen.dart';
 import '../../features/shared_list/presentation/public_shared_list_screen.dart';
+import '../../features/shared_list/presentation/create_shared_list_screen.dart';
+import '../../features/shared_list/data/shared_list_repository.dart';
 import '../shell/app_shell.dart';
 
 /// App router configuration with GoRouter
@@ -78,6 +80,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final listId = state.pathParameters['listId']!;
           return PublicSharedListScreen(listId: listId);
+        },
+      ),
+      // Create Shared List view
+      GoRoute(
+        path: '/create-list',
+        builder: (context, state) {
+          final existingList = state.extra as SharedList?;
+          return CreateSharedListScreen(existingList: existingList);
         },
       ),
     ],

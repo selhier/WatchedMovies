@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../constants/api_constants.dart';
 
 /// Singleton TMDB API client with Dio
@@ -7,15 +8,21 @@ class TmdbClient {
   late final Dio _dio;
 
   TmdbClient._() {
+    final headers = <String, dynamic>{
+      'Content-Type': 'application/json',
+    };
+
+    // On native platforms, use Bearer token; on web, use api_key param to avoid CORS preflight
+    if (!kIsWeb) {
+      headers['Authorization'] = 'Bearer ${ApiConstants.tmdbAccessToken}';
+    }
+
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.tmdbBaseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 15),
-        headers: {
-          'Authorization': 'Bearer ${ApiConstants.tmdbAccessToken}',
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
       ),
     );
 
@@ -44,7 +51,12 @@ class TmdbClient {
     String path, {
     Map<String, dynamic>? queryParameters,
   }) {
-    return _dio.get(path, queryParameters: queryParameters);
+    final params = <String, dynamic>{...?queryParameters};
+    // On web, pass api_key as query param instead of Bearer token header
+    if (kIsWeb) {
+      params['api_key'] = ApiConstants.tmdbApiKey;
+    }
+    return _dio.get(path, queryParameters: params);
   }
 
   // ─── Movie Endpoints ──────────────────────────────────────

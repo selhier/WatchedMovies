@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
@@ -50,6 +51,15 @@ class ProfileScreen extends ConsumerWidget {
             },
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/create-list'),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add_rounded, color: AppColors.textOnPrimary),
+        label: const Text(
+          'Crear Lista',
+          style: TextStyle(color: AppColors.textOnPrimary, fontWeight: FontWeight.bold),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -296,16 +306,65 @@ class ProfileScreen extends ConsumerWidget {
                               style: const TextStyle(
                                   color: AppColors.textTertiary, fontSize: 12),
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.share_rounded,
-                                  color: AppColors.primary, size: 20),
-                              onPressed: () async {
-                                final shareLink = 'https://watchedmovies-394dc.firebaseapp.com/list/${list.id}';
-                                await Share.share(
-                                  'share.text'.tr(args: ['${list.title}\n$shareLink']),
-                                  subject: 'share.title'.tr(),
-                                );
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.share_rounded,
+                                      color: AppColors.primary, size: 20),
+                                  onPressed: () async {
+                                    final shareLink = 'https://watchedmovies-394dc.firebaseapp.com/list/${list.id}';
+                                    await Share.share(
+                                      'share.text'.tr(args: ['${list.title}\n$shareLink']),
+                                      subject: 'share.title'.tr(),
+                                    );
+                                  },
+                                ),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
+                                  onSelected: (value) async {
+                                    if (value == 'edit') {
+                                      context.push('/create-list', extra: list);
+                                    } else if (value == 'delete') {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('Eliminar lista'),
+                                          content: const Text('¿Estás seguro de que deseas eliminar esta lista?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, false),
+                                              child: const Text('Cancelar'),
+                                            ),
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, true),
+                                              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        await ref.read(sharedListRepositoryProvider).deleteList(list.id);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Lista eliminada')),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Editar'),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         )),
@@ -358,26 +417,30 @@ class _StatCard extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: color,
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
                 ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textTertiary,
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/api_constants.dart';
 import '../../app/theme/app_colors.dart';
+import '../../features/my_lists/data/list_repository.dart';
+import '../../core/models/movie_entry.dart';
+import '../../features/auth/data/auth_repository.dart';
+import '../../features/movie_detail/data/movie_repository.dart';
 
 /// Reusable movie poster card with hover effects and rating badge
-class MovieCard extends StatefulWidget {
+class MovieCard extends ConsumerStatefulWidget {
   final int movieId;
   final String title;
   final String? posterPath;
@@ -28,10 +33,10 @@ class MovieCard extends StatefulWidget {
   });
 
   @override
-  State<MovieCard> createState() => _MovieCardState();
+  ConsumerState<MovieCard> createState() => _MovieCardState();
 }
 
-class _MovieCardState extends State<MovieCard> {
+class _MovieCardState extends ConsumerState<MovieCard> {
   bool _isHovering = false;
 
   @override
@@ -180,6 +185,87 @@ class _MovieCardState extends State<MovieCard> {
               ),
             ),
           ),
+        
+        // Watched status badge / button
+        Positioned(
+          top: 8,
+          left: 8,
+          child: Consumer(
+            builder: (context, ref, child) {
+              final entry = ref.watch(movieEntryProvider(widget.movieId));
+              final isWatched = entry?.status == MovieStatus.watched;
+
+              return GestureDetector(
+                onTap: () async {
+                  final user = ref.read(authStateProvider).value;
+                  if (user == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Debes iniciar sesión primero')),
+                    );
+                    return;
+                  }
+
+                  final repo = ref.read(listRepositoryProvider);
+                  if (isWatched) {
+                    // Remove from list
+                    await repo.removeMovieEntry(user.uid, widget.movieId);
+                  } else {
+                    // Add as watched
+                    final movieRepo = ref.read(movieRepositoryProvider);
+                    try {
+                      final movie = await movieRepo.getMovieDetail(widget.movieId);
+                      await repo.addMovieToList(
+                        userId: user.uid,
+                        movie: movie,
+                        status: MovieStatus.watched,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Marcada como vista ✅'),
+                            backgroundColor: AppColors.watched,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Error al marcar película'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: isWatched
+                        ? AppColors.watched
+                        : AppColors.surfaceLight.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isWatched ? Icons.check_rounded : Icons.visibility_outlined,
+                    color: isWatched ? Colors.white : AppColors.textPrimary,
+                    size: 16,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
