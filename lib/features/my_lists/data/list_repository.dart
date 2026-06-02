@@ -18,25 +18,80 @@ final movieEntriesStreamProvider =
   return ref.watch(listRepositoryProvider).watchMovieEntries(user.uid);
 });
 
+enum ListSortOption {
+  dateAddedDesc,
+  dateAddedAsc,
+  ratingDesc,
+  titleAsc,
+  releaseYearDesc,
+}
+
+class ListSortNotifier extends Notifier<ListSortOption> {
+  @override
+  ListSortOption build() => ListSortOption.dateAddedDesc;
+  void updateState(ListSortOption newValue) => state = newValue;
+}
+final listSortProvider = NotifierProvider<ListSortNotifier, ListSortOption>(ListSortNotifier.new);
+
+class ListGenreFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void updateState(String? newValue) => state = newValue;
+}
+final listGenreFilterProvider = NotifierProvider<ListGenreFilterNotifier, String?>(ListGenreFilterNotifier.new);
+
+List<MovieEntry> _applySortAndFilter(List<MovieEntry> entries, ListSortOption sort, String? genre) {
+  var result = entries;
+  if (genre != null && genre.isNotEmpty) {
+    result = result.where((e) => e.genres.contains(genre)).toList();
+  }
+  
+  result = List.from(result);
+  result.sort((a, b) {
+    switch (sort) {
+      case ListSortOption.dateAddedDesc:
+        return b.addedAt.compareTo(a.addedAt);
+      case ListSortOption.dateAddedAsc:
+        return a.addedAt.compareTo(b.addedAt);
+      case ListSortOption.ratingDesc:
+        return (b.score ?? -1).compareTo(a.score ?? -1);
+      case ListSortOption.titleAsc:
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      case ListSortOption.releaseYearDesc:
+        return (b.year ?? 0).compareTo(a.year ?? 0);
+    }
+  });
+  return result;
+}
+
 /// Filtered movie entries by status
 final watchedMoviesProvider = Provider<List<MovieEntry>>((ref) {
   final entries = ref.watch(movieEntriesStreamProvider).value ?? [];
-  return entries.where((e) => e.status == MovieStatus.watched).toList();
+  final filtered = entries.where((e) => e.status == MovieStatus.watched).toList();
+  return _applySortAndFilter(filtered, ref.watch(listSortProvider), ref.watch(listGenreFilterProvider));
 });
 
 final pendingMoviesProvider = Provider<List<MovieEntry>>((ref) {
   final entries = ref.watch(movieEntriesStreamProvider).value ?? [];
-  return entries.where((e) => e.status == MovieStatus.pending).toList();
+  final filtered = entries.where((e) => e.status == MovieStatus.pending).toList();
+  return _applySortAndFilter(filtered, ref.watch(listSortProvider), ref.watch(listGenreFilterProvider));
 });
 
 final abandonedMoviesProvider = Provider<List<MovieEntry>>((ref) {
   final entries = ref.watch(movieEntriesStreamProvider).value ?? [];
-  return entries.where((e) => e.status == MovieStatus.abandoned).toList();
+  final filtered = entries.where((e) => e.status == MovieStatus.abandoned).toList();
+  return _applySortAndFilter(filtered, ref.watch(listSortProvider), ref.watch(listGenreFilterProvider));
 });
 
 final watchingMoviesProvider = Provider<List<MovieEntry>>((ref) {
   final entries = ref.watch(movieEntriesStreamProvider).value ?? [];
-  return entries.where((e) => e.status == MovieStatus.watching).toList();
+  final filtered = entries.where((e) => e.status == MovieStatus.watching).toList();
+  return _applySortAndFilter(filtered, ref.watch(listSortProvider), ref.watch(listGenreFilterProvider));
+});
+
+final allFilteredMoviesProvider = Provider<List<MovieEntry>>((ref) {
+  final entries = ref.watch(movieEntriesStreamProvider).value ?? [];
+  return _applySortAndFilter(entries, ref.watch(listSortProvider), ref.watch(listGenreFilterProvider));
 });
 
 /// Check if a specific movie is in the user's list

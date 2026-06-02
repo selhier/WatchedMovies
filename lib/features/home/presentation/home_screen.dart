@@ -74,6 +74,14 @@ class HomeScreen extends ConsumerWidget {
               child: _QuickStats(),
             ),
 
+            // Recommendations
+            SliverToBoxAdapter(
+              child: _MovieSection(
+                title: '✨ Recomendado para ti',
+                provider: recommendedMoviesProvider,
+              ),
+            ),
+
             // Popular Movies
             SliverToBoxAdapter(
               child: _MovieSection(
@@ -465,6 +473,8 @@ class _MovieSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final moviesAsync = ref.watch(provider);
 
+    // Let it build the section so we can see if it's empty
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -480,26 +490,40 @@ class _MovieSection extends ConsumerWidget {
           ),
         ),
         moviesAsync.when(
-          data: (movies) => SizedBox(
-            height: 290,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: movies.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final movie = movies[index];
-                return MovieCard(
-                  movieId: movie.id,
-                  title: movie.title,
-                  posterPath: movie.posterPath,
-                  voteAverage: movie.voteAverage,
-                  year: movie.year?.toString(),
-                  onTap: () => context.push('/movie/${movie.id}'),
-                );
-              },
-            ),
-          ),
+          data: (movies) {
+            if (movies.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                child: Text(
+                  'Agrega películas o califícalas para recibir recomendaciones personalizadas.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              );
+            }
+            return SizedBox(
+              height: 290,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: movies.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final movie = movies[index];
+                  return MovieCard(
+                    movieId: movie.id,
+                    title: movie.title,
+                    posterPath: movie.posterPath,
+                    voteAverage: movie.voteAverage,
+                    year: movie.year?.toString(),
+                    onTap: () => context.push('/movie/${movie.id}'),
+                  );
+                },
+              ),
+            );
+          },
           loading: () => const ShimmerMovieRow(),
           error: (e, _) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

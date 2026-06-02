@@ -20,7 +20,6 @@ class MyListsScreen extends ConsumerStatefulWidget {
 class _MyListsScreenState extends ConsumerState<MyListsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _sortBy = 'updatedAt';
 
   @override
   void initState() {
@@ -36,7 +35,8 @@ class _MyListsScreenState extends ConsumerState<MyListsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final allEntries = ref.watch(movieEntriesStreamProvider);
+    // We watch the streams to handle loading/error states for the whole page
+    final allEntriesAsync = ref.watch(movieEntriesStreamProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -44,17 +44,22 @@ class _MyListsScreenState extends ConsumerState<MyListsScreen>
         backgroundColor: AppColors.background,
         title: const Text('My Lists'),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort_rounded, color: AppColors.textSecondary),
-            color: AppColors.surface,
-            onSelected: (value) => setState(() => _sortBy = value),
-            itemBuilder: (_) => [
-              _sortMenuItem('updatedAt', 'Recently Updated', Icons.update_rounded),
-              _sortMenuItem('addedAt', 'Date Added', Icons.calendar_today_rounded),
-              _sortMenuItem('score', 'Score', Icons.star_rounded),
-              _sortMenuItem('title', 'Title', Icons.sort_by_alpha_rounded),
-              _sortMenuItem('year', 'Year', Icons.date_range_rounded),
-            ],
+          Consumer(
+            builder: (context, ref, _) {
+              final sortBy = ref.watch(listSortProvider);
+              return PopupMenuButton<ListSortOption>(
+                icon: const Icon(Icons.sort_rounded, color: AppColors.textSecondary),
+                color: AppColors.surface,
+                onSelected: (value) => ref.read(listSortProvider.notifier).updateState(value),
+                itemBuilder: (_) => [
+                  _sortMenuItem(ListSortOption.dateAddedDesc, 'Date Added (Newest)', Icons.calendar_today_rounded, sortBy),
+                  _sortMenuItem(ListSortOption.dateAddedAsc, 'Date Added (Oldest)', Icons.calendar_today_outlined, sortBy),
+                  _sortMenuItem(ListSortOption.ratingDesc, 'Score', Icons.star_rounded, sortBy),
+                  _sortMenuItem(ListSortOption.titleAsc, 'Title', Icons.sort_by_alpha_rounded, sortBy),
+                  _sortMenuItem(ListSortOption.releaseYearDesc, 'Year', Icons.date_range_rounded, sortBy),
+                ],
+              );
+            }
           ),
         ],
         bottom: TabBar(
@@ -70,58 +75,31 @@ class _MyListsScreenState extends ConsumerState<MyListsScreen>
           ],
         ),
       ),
-      body: allEntries.when(
-        data: (entries) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildList(entries),
-              _buildList(entries
-                  .where((e) => e.status == MovieStatus.watched)
-                  .toList()),
-              _buildList(entries
-                  .where((e) => e.status == MovieStatus.pending)
-                  .toList()),
-              _buildList(entries
-                  .where((e) => e.status == MovieStatus.watching)
-                  .toList()),
-              _buildList(entries
-                  .where((e) => e.status == MovieStatus.abandoned)
-                  .toList()),
-            ],
-          );
-        },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-        error: (e, _) => Center(
-          child: Text('Error: $e',
-              style: const TextStyle(color: AppColors.textTertiary)),
-        ),
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _sortMenuItem(
-      String value, String label, IconData icon) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
+      body: Column(
         children: [
-          Icon(icon,
-              size: 18,
-              color: _sortBy == value
-                  ? AppColors.primary
-                  : AppColors.textTertiary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: _sortBy == value
-                  ? AppColors.primary
-                  : AppColors.textPrimary,
-              fontWeight:
-                  _sortBy == value ? FontWeight.w600 : FontWeight.w400,
+          _FilterBar(),
+          Expanded(
+            child: allEntriesAsync.when(
+              data: (_) {
+                // The actual lists are obtained through the filtered providers synchronously
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildList(ref.watch(allFilteredMoviesProvider)),
+                    _buildList(ref.watch(watchedMoviesProvider)),
+                    _buildList(ref.watch(pendingMoviesProvider)),
+                    _buildList(ref.watch(watchingMoviesProvider)),
+                    _buildList(ref.watch(abandonedMoviesProvider)),
+                  ],
+                );
+              },
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+              error: (e, _) => Center(
+                child: Text('Error: $e',
+                    style: const TextStyle(color: AppColors.textTertiary)),
+              ),
             ),
           ),
         ],
@@ -129,29 +107,35 @@ class _MyListsScreenState extends ConsumerState<MyListsScreen>
     );
   }
 
-  List<MovieEntry> _sortEntries(List<MovieEntry> entries) {
-    final sorted = List<MovieEntry>.from(entries);
-    switch (_sortBy) {
-      case 'score':
-        sorted.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
-        break;
-      case 'title':
-        sorted.sort((a, b) => a.title.compareTo(b.title));
-        break;
-      case 'year':
-        sorted.sort((a, b) => (b.year ?? 0).compareTo(a.year ?? 0));
-        break;
-      case 'addedAt':
-        sorted.sort((a, b) => b.addedAt.compareTo(a.addedAt));
-        break;
-      default: // updatedAt
-        sorted.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    }
-    return sorted;
+  PopupMenuItem<ListSortOption> _sortMenuItem(
+      ListSortOption value, String label, IconData icon, ListSortOption currentSort) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon,
+              size: 18,
+              color: currentSort == value
+                  ? AppColors.primary
+                  : AppColors.textTertiary),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: currentSort == value
+                  ? AppColors.primary
+                  : AppColors.textPrimary,
+              fontWeight:
+                  currentSort == value ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildList(List<MovieEntry> entries) {
-    final sorted = _sortEntries(entries);
+    final sorted = entries; // Already sorted and filtered by the providers
 
     if (sorted.isEmpty) {
       return Center(
@@ -362,6 +346,273 @@ class _MovieListTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FilterBar extends ConsumerWidget {
+  const _FilterBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get unique genres from all user movies to populate the filter
+    final allEntries = ref.watch(movieEntriesStreamProvider).value ?? [];
+    final Set<String> genres = {};
+    for (final entry in allEntries) {
+      genres.addAll(entry.genres);
+    }
+    final sortedGenres = genres.toList()..sort();
+
+    final selectedGenre = ref.watch(listGenreFilterProvider);
+
+    if (sortedGenres.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: sortedGenres.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            final isSelected = selectedGenre == null;
+            return FilterChip(
+              label: const Text('All Genres'),
+              selected: isSelected,
+              showCheckmark: false,
+              selectedColor: AppColors.primary.withOpacity(0.2),
+              backgroundColor: AppColors.surface,
+              labelStyle: TextStyle(
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // Movie list
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            itemCount: sorted.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
+            itemBuilder: (context, index) {
+              final entry = sorted[index];
+              return _MovieListTile(entry: entry)
+                  .animate()
+                  .fadeIn(
+                    delay: Duration(milliseconds: (index * 30).clamp(0, 300)),
+                    duration: 300.ms,
+                  )
+                  .slideX(begin: 0.05, end: 0);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  double _avgScore(List<MovieEntry> entries) {
+    final scored = entries.where((e) => e.score != null).toList();
+    if (scored.isEmpty) return 0;
+    return scored.map((e) => e.score!).reduce((a, b) => a + b) /
+        scored.length;
+  }
+}
+
+class _MovieListTile extends StatelessWidget {
+  final MovieEntry entry;
+
+  const _MovieListTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.surface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.push('/movie/${entry.tmdbId}'),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              // Poster
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: entry.posterPath != null
+                    ? CachedNetworkImage(
+                        imageUrl: ApiConstants.posterUrl(entry.posterPath,
+                            size: ApiConstants.posterSmall),
+                        width: 56,
+                        height: 84,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        width: 56,
+                        height: 84,
+                        color: AppColors.surfaceLight,
+                        child: const Icon(Icons.movie_outlined,
+                            color: AppColors.textTertiary, size: 20),
+                      ),
+              ),
+              const SizedBox(width: 12),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (entry.year != null)
+                          Text(
+                            '${entry.year}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        if (entry.year != null && entry.genres.isNotEmpty)
+                          const Text(' • ',
+                              style: TextStyle(
+                                  color: AppColors.textTertiary, fontSize: 12)),
+                        if (entry.genres.isNotEmpty)
+                          Expanded(
+                            child: Text(
+                              entry.genres.take(2).join(', '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Status chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.statusColor(entry.status.name)
+                            .withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${entry.status.icon} ${entry.status.label}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.statusColor(entry.status.name),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Score badge
+              if (entry.score != null) ...[
+                const SizedBox(width: 8),
+                RatingBadge(score: entry.score!, fontSize: 18),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterBar extends ConsumerWidget {
+  const _FilterBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Get unique genres from all user movies to populate the filter
+    final allEntries = ref.watch(movieEntriesStreamProvider).value ?? [];
+    final Set<String> genres = {};
+    for (final entry in allEntries) {
+      genres.addAll(entry.genres);
+    }
+    final sortedGenres = genres.toList()..sort();
+
+    final selectedGenre = ref.watch(listGenreFilterProvider);
+
+    if (sortedGenres.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: sortedGenres.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            final isSelected = selectedGenre == null;
+            return FilterChip(
+              label: const Text('All Genres'),
+              selected: isSelected,
+              showCheckmark: false,
+              selectedColor: AppColors.primary.withOpacity(0.2),
+              backgroundColor: AppColors.surface,
+              labelStyle: TextStyle(
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 13,
+              ),
+              side: BorderSide(
+                color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+              ),
+              onSelected: (_) => ref.read(listGenreFilterProvider.notifier).updateState(null),
+            );
+          }
+
+          final genre = sortedGenres[index - 1];
+          final isSelected = selectedGenre == genre;
+          
+          return FilterChip(
+            label: Text(genre),
+            selected: isSelected,
+            showCheckmark: false,
+            selectedColor: AppColors.primary.withOpacity(0.2),
+            backgroundColor: AppColors.surface,
+            labelStyle: TextStyle(
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 13,
+            ),
+            side: BorderSide(
+              color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+            ),
+            onSelected: (_) => ref.read(listGenreFilterProvider.notifier).updateState(genre),
+          );
+        },
       ),
     );
   }

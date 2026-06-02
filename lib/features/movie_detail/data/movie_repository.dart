@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/movie.dart';
 import '../../../core/network/tmdb_client.dart';
 import '../../../core/providers/language_provider.dart';
+import '../../my_lists/data/list_repository.dart';
+import '../../../core/models/movie_entry.dart';
 /// Provides the movie repository
 final movieRepositoryProvider = Provider<MovieRepository>((ref) {
   return MovieRepository();
@@ -26,6 +28,49 @@ final topRatedMoviesProvider = FutureProvider<List<Movie>>((ref) async {
   final repo = ref.watch(movieRepositoryProvider);
   final lang = ref.watch(languageProvider);
   return repo.getTopRatedMovies(language: lang);
+});
+
+/// Provider for personalized recommendations based on highest rated/watched movies
+final recommendedMoviesProvider = FutureProvider<List<Movie>>((ref) async {
+  final repo = ref.watch(movieRepositoryProvider);
+  final entries = ref.watch(movieEntriesStreamProvider).value ?? [];
+  
+  if (entries.isEmpty) {
+    return []; // No base movies to recommend from
+  }
+
+  // Get highly rated movies (score >= 8), or if none, recently added watched movies
+  var baseMovies = entries.where((e) => e.score != null && e.score! >= 8).toList();
+  if (baseMovies.isEmpty) {
+    baseMovies = entries.where((e) => e.status == MovieStatus.watched).toList();
+  }
+  if (baseMovies.isEmpty) {
+    baseMovies = entries.take(3).toList();
+  }
+
+  // Shuffle and take up to 2 movies to base recommendations on
+  baseMovies.shuffle();
+  final targetMovies = baseMovies.take(2).toList();
+  
+  final Set<int> recommendedIds = {};
+  final List<Movie> allRecommendations = [];
+
+  for (final movie in targetMovies) {
+    try {
+      final recs = await repo.getRecommendations(movie.tmdbId);
+      for (final rec in recs) {
+        if (!recommendedIds.contains(rec.id) && !entries.any((e) => e.tmdbId == rec.id)) {
+          recommendedIds.add(rec.id);
+          allRecommendations.add(rec);
+        }
+      }
+    } catch (_) {
+      // Ignore errors for individual movie recommendation requests
+    }
+  }
+
+  allRecommendations.shuffle();
+  return allRecommendations.take(20).toList();
 });
 
 /// Provider for movie details (parameterized by movieId)
