@@ -1,0 +1,53 @@
+name: watched_movies
+description: "Track your movies like MyAnimeList"
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: any
+  firebase_auth: any
+  cloud_firestore: any
+  google_sign_in: 6.2.1
+
+  # State Management
+  flutter_riverpod: any
+
+  # Routing
+  go_router: any
+
+  # Network
+  dio: any
+
+  # UI
+  google_fonts: any
+  cached_network_image: any
+  shimmer: any
+  flutter_animate: any
+  flutter_staggered_animations: any
+
+  # Utilities
+  intl: any
+  share_plus: ^12.0.2
+  url_launcher: any
+  uuid: any
+  shared_preferences: ^2.5.5
+  easy_localization: ^3.0.8
+  flutter_dotenv: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/translations/
+    - .env

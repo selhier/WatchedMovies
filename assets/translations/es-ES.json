@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "title": "Perfil",
+    "stats": {
+      "total": "Total",
+      "watched": "Vistos",
+      "pending": "Pendientes",
+      "avgScore": "Puntuación Media"
+    },
+    "genres": "Géneros Favoritos",
+    "sharedLists": "Listas Compartidas",
+    "movies": "películas"
+  },
+  "share": {
+    "title": "Compartir Lista",
+    "text": "Echa un vistazo a mi lista de películas: {}"
+  }
+}

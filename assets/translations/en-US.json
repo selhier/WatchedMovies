@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "title": "Profile",
+    "stats": {
+      "total": "Total",
+      "watched": "Watched",
+      "pending": "Pending",
+      "avgScore": "Avg Score"
+    },
+    "genres": "Favorite Genres",
+    "sharedLists": "Shared Lists",
+    "movies": "movies"
+  },
+  "share": {
+    "title": "Share List",
+    "text": "Check out my movie list: {}"
+  }
+}
