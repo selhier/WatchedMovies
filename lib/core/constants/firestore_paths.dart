@@ -5,6 +5,7 @@ class FirestorePaths {
   // ─── Collections ──────────────────────────────────────────
   static const String users = 'users';
   static const String sharedLists = 'sharedLists';
+  static const String communityFeed = 'communityFeed';
 
   // ─── Subcollections ───────────────────────────────────────
   static String movieEntries(String userId) =>
@@ -12,6 +13,9 @@ class FirestorePaths {
 
   static String sharedListMovies(String listId) =>
       '$sharedLists/$listId/movies';
+
+  static String sharedListComments(String listId) =>
+      '$sharedLists/$listId/comments';
 
   // ─── Documents ────────────────────────────────────────────
   static String user(String userId) => '$users/$userId';
@@ -23,4 +27,7 @@ class FirestorePaths {
 
   static String sharedListMovie(String listId, int tmdbId) =>
       '$sharedLists/$listId/movies/$tmdbId';
+
+  static String sharedListComment(String listId, String commentId) =>
+      '$sharedLists/$listId/comments/$commentId';
 }

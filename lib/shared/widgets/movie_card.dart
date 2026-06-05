@@ -218,6 +218,8 @@ class _MovieCardState extends ConsumerState<MovieCard> {
                         userId: user.uid,
                         movie: movie,
                         status: MovieStatus.watched,
+                        userName: user.displayName ?? 'User',
+                        userPhotoUrl: user.photoURL,
                       );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

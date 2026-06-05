@@ -12,6 +12,7 @@ class AppShell extends StatelessWidget {
     _NavItem(icon: Icons.home_rounded, label: 'Home', path: '/'),
     _NavItem(icon: Icons.explore_rounded, label: 'Discover', path: '/search'),
     _NavItem(icon: Icons.list_alt_rounded, label: 'My Lists', path: '/lists'),
+    _NavItem(icon: Icons.people_rounded, label: 'Community', path: '/community'),
     _NavItem(icon: Icons.person_rounded, label: 'Profile', path: '/profile'),
   ];
 

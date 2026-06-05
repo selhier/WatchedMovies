@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../core/models/movie_entry.dart';
 import '../../../core/models/movie.dart';
+import '../../../core/models/activity.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../feed/data/activity_repository.dart';
 
 /// Provides the list repository
 final listRepositoryProvider = Provider<ListRepository>((ref) {
@@ -148,6 +150,8 @@ class ListRepository {
     required MovieStatus status,
     int? score,
     String? review,
+    String? userName,
+    String? userPhotoUrl,
   }) async {
     final now = DateTime.now();
     final entry = MovieEntry(
@@ -166,6 +170,38 @@ class ListRepository {
     );
 
     await setMovieEntry(userId, entry);
+
+    // Publish activity to community feed
+    if (userName != null) {
+      final activityRepo = ActivityRepository();
+      if (status == MovieStatus.watched) {
+        await activityRepo.publishActivity(Activity(
+          id: '',
+          userId: userId,
+          userName: userName,
+          userPhotoUrl: userPhotoUrl,
+          type: ActivityType.watched,
+          movieTitle: movie.title,
+          movieId: movie.id,
+          posterPath: movie.posterPath,
+          createdAt: now,
+        ));
+      }
+      if (score != null) {
+        await activityRepo.publishActivity(Activity(
+          id: '',
+          userId: userId,
+          userName: userName,
+          userPhotoUrl: userPhotoUrl,
+          type: ActivityType.rated,
+          movieTitle: movie.title,
+          movieId: movie.id,
+          posterPath: movie.posterPath,
+          score: score,
+          createdAt: now,
+        ));
+      }
+    }
   }
 
   /// Update the status and/or score of an existing entry
@@ -175,9 +211,14 @@ class ListRepository {
     MovieStatus? status,
     int? score,
     String? review,
+    String? movieTitle,
+    String? posterPath,
+    String? userName,
+    String? userPhotoUrl,
   }) async {
+    final now = DateTime.now();
     final updates = <String, dynamic>{
-      'updatedAt': Timestamp.fromDate(DateTime.now()),
+      'updatedAt': Timestamp.fromDate(now),
     };
     if (status != null) updates['status'] = status.name;
     if (score != null) updates['score'] = score;
@@ -187,6 +228,38 @@ class ListRepository {
         .collection(FirestorePaths.movieEntries(userId))
         .doc(tmdbId.toString())
         .update(updates);
+
+    // Publish activity to community feed
+    if (userName != null && movieTitle != null) {
+      final activityRepo = ActivityRepository();
+      if (status == MovieStatus.watched) {
+        await activityRepo.publishActivity(Activity(
+          id: '',
+          userId: userId,
+          userName: userName,
+          userPhotoUrl: userPhotoUrl,
+          type: ActivityType.watched,
+          movieTitle: movieTitle,
+          movieId: tmdbId,
+          posterPath: posterPath,
+          createdAt: now,
+        ));
+      }
+      if (score != null) {
+        await activityRepo.publishActivity(Activity(
+          id: '',
+          userId: userId,
+          userName: userName,
+          userPhotoUrl: userPhotoUrl,
+          type: ActivityType.rated,
+          movieTitle: movieTitle,
+          movieId: tmdbId,
+          posterPath: posterPath,
+          score: score,
+          createdAt: now,
+        ));
+      }
+    }
   }
 
   /// Remove a movie from the user's list

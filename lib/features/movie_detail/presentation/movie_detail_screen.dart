@@ -666,6 +666,8 @@ class MovieDetailScreen extends ConsumerWidget {
                                     review: reviewController.text.isEmpty
                                         ? null
                                         : reviewController.text,
+                                    userName: user.displayName ?? 'User',
+                                    userPhotoUrl: user.photoURL,
                                   );
 
                               if (ctx.mounted) {

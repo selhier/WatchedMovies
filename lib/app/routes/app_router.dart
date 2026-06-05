@@ -5,6 +5,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/my_lists/presentation/my_lists_screen.dart';
+import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/movie_detail/presentation/movie_detail_screen.dart';
 import '../../features/shared_list/presentation/public_shared_list_screen.dart';
@@ -60,6 +61,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/profile',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: ProfileScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/community',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: FeedScreen(),
             ),
           ),
         ],
