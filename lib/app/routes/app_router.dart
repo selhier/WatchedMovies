@@ -7,6 +7,8 @@ import '../../features/search/presentation/search_screen.dart';
 import '../../features/my_lists/presentation/my_lists_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/profile/presentation/public_profile_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/movie_detail/presentation/movie_detail_screen.dart';
 import '../../features/shared_list/presentation/public_shared_list_screen.dart';
 import '../../features/shared_list/presentation/create_shared_list_screen.dart';
@@ -68,6 +70,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => const NoTransitionPage(
               child: FeedScreen(),
             ),
+          ),
+          GoRoute(
+            path: '/user/:id',
+            builder: (context, state) {
+              final userId = state.pathParameters['id']!;
+              return PublicProfileScreen(uid: userId);
+            },
+          ),
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsScreen(),
           ),
         ],
       ),

@@ -17,6 +17,15 @@ class FirestorePaths {
   static String sharedListComments(String listId) =>
       '$sharedLists/$listId/comments';
 
+  static String following(String userId) => '$users/$userId/following';
+
+  static String followers(String userId) => '$users/$userId/followers';
+
+  static String notifications(String userId) => '$users/$userId/notifications';
+
+  static String activityComments(String activityId) =>
+      '$communityFeed/$activityId/comments';
+
   // ─── Documents ────────────────────────────────────────────
   static String user(String userId) => '$users/$userId';
 

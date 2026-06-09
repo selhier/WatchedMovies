@@ -7,19 +7,59 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/models/activity.dart';
 import '../data/activity_repository.dart';
+import '../../profile/data/user_profile_repository.dart';
+import '../../auth/data/auth_repository.dart';
+import '../../notifications/data/notification_repository.dart';
+import 'activity_comments_sheet.dart';
+import '../../../core/widgets/empty_state_widget.dart';
 
 /// Community feed screen — social wall showing what everyone is watching & rating
-class FeedScreen extends ConsumerWidget {
+class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FeedScreen> createState() => _FeedScreenState();
+}
+
+class _FeedScreenState extends ConsumerState<FeedScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // Reached the bottom, load more
+      final currentLimit = ref.read(feedLimitProvider);
+      ref.read(feedLimitProvider.notifier).state = currentLimit + 20;
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final feedAsync = ref.watch(communityFeedProvider);
+    final followingIdsAsync = ref.watch(myFollowingIdsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
+        elevation: 0,
         title: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -28,90 +68,120 @@ class FeedScreen extends ConsumerWidget {
             Text('Community'),
           ],
         ),
+        actions: [
+          _NotificationBell(),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textTertiary,
+          tabs: const [
+            Tab(text: 'Global'),
+            Tab(text: 'Following'),
+          ],
+        ),
       ),
-      body: feedAsync.when(
-        data: (activities) {
-          if (activities.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return RefreshIndicator(
-            color: AppColors.primary,
-            backgroundColor: AppColors.surface,
-            onRefresh: () async {
-              ref.invalidate(communityFeedProvider);
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-              itemCount: activities.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final activity = activities[index];
-                return _ActivityCard(activity: activity)
-                    .animate()
-                    .fadeIn(
-                      delay: Duration(milliseconds: (index * 40).clamp(0, 400)),
-                      duration: 350.ms,
-                    )
-                    .slideY(begin: 0.08, end: 0);
-              },
-            ),
-          );
-        },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.wifi_off_rounded,
-                  size: 48, color: AppColors.textTertiary),
-              const SizedBox(height: 12),
-              Text('Could not load feed\n$e',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textTertiary)),
-            ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // ─── GLOBAL TAB ──────────────────────────────────────────────────
+          feedAsync.when(
+            data: (activities) => _buildFeedList(activities),
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (e, _) => _buildErrorState(e),
           ),
-        ),
+
+          // ─── FOLLOWING TAB ───────────────────────────────────────────────
+          followingIdsAsync.when(
+            data: (followingIds) {
+              if (followingIds.isEmpty) {
+                return const EmptyStateWidget(
+                  icon: Icons.person_add_rounded,
+                  title: 'No following yet',
+                  subtitle: 'Follow other users to see their activity here.',
+                );
+              }
+              return feedAsync.when(
+                data: (activities) {
+                  final followingActivities = activities
+                      .where((a) => followingIds.contains(a.userId))
+                      .toList();
+                  return _buildFeedList(followingActivities, isFollowingTab: true);
+                },
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                error: (e, _) => _buildErrorState(e),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (e, _) => _buildErrorState(e),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildFeedList(List<Activity> activities, {bool isFollowingTab = false}) {
+    if (activities.isEmpty) {
+      return EmptyStateWidget(
+        icon: Icons.movie_filter_rounded,
+        title: isFollowingTab ? 'No recent activity' : 'No activity yet',
+        subtitle: isFollowingTab
+            ? 'The people you follow haven\'t done anything recently.'
+            : 'Start watching & rating movies to see the community come alive! 🎬',
+      );
+    }
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      backgroundColor: AppColors.surface,
+      onRefresh: () async {
+        ref.invalidate(communityFeedProvider);
+      },
+      child: ListView.separated(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: activities.length + 1, // +1 for loading indicator
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        itemBuilder: (context, index) {
+          if (index == activities.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+            );
+          }
+          final activity = activities[index];
+          return _ActivityCard(activity: activity)
+              .animate()
+              .fadeIn(
+                delay: Duration(milliseconds: (index * 40).clamp(0, 400)),
+                duration: 350.ms,
+              )
+              .slideY(begin: 0.08, end: 0);
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.primarySurface,
-            ),
-            child: const Icon(Icons.movie_filter_rounded,
-                color: AppColors.primary, size: 36),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'No activity yet',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Start watching & rating movies to see\nthe community come alive! 🎬',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textTertiary,
-              height: 1.5,
-            ),
-          ),
+          const Icon(Icons.wifi_off_rounded, size: 48, color: AppColors.textTertiary),
+          const SizedBox(height: 12),
+          Text('Could not load feed\n$error',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textTertiary)),
         ],
       ),
     );
@@ -119,13 +189,13 @@ class FeedScreen extends ConsumerWidget {
 }
 
 /// A single activity card in the community feed
-class _ActivityCard extends StatelessWidget {
+class _ActivityCard extends ConsumerWidget {
   final Activity activity;
 
   const _ActivityCard({required this.activity});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -143,7 +213,12 @@ class _ActivityCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar
-              _buildAvatar(),
+              GestureDetector(
+                onTap: () {
+                  context.push('/user/${activity.userId}');
+                },
+                child: _buildAvatar(),
+              ),
               const SizedBox(width: 12),
 
               // Content
@@ -186,6 +261,31 @@ class _ActivityCard extends StatelessWidget {
                       _buildScoreBadge(activity.score!),
                     ],
 
+                    // Review (if any)
+                    if (activity.review != null &&
+                        activity.review!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppColors.divider.withOpacity(0.5),
+                          ),
+                        ),
+                        child: Text(
+                          '"${activity.review!}"',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.4,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 8),
 
                     // Timestamp
@@ -206,6 +306,11 @@ class _ActivityCard extends StatelessWidget {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 12),
+
+                    // Actions (Like / Comment)
+                    _buildActions(context, ref),
                   ],
                 ),
               ),
@@ -341,5 +446,133 @@ class _ActivityCard extends StatelessWidget {
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
     return '${(diff.inDays / 30).floor()}mo ago';
+  }
+
+  Widget _buildActions(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).value;
+    final isLiked = user != null && activity.likedBy.contains(user.uid);
+
+    return Row(
+      children: [
+        // Like Button
+        InkWell(
+          onTap: user == null
+              ? null
+              : () {
+                  ref
+                      .read(activityRepositoryProvider)
+                      .toggleLikeActivity(activity.id, user.uid);
+                },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  isLiked ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                  size: 18,
+                  color: isLiked ? AppColors.error : AppColors.textTertiary,
+                )
+                .animate(target: isLiked ? 1 : 0)
+                .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 150.ms)
+                .then()
+                .scale(begin: const Offset(1.2, 1.2), end: const Offset(1, 1), duration: 150.ms),
+                if (activity.likesCount > 0) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '${activity.likesCount}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isLiked ? AppColors.error : AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Comment Button
+        InkWell(
+          onTap: () {
+            ActivityCommentsSheet.show(context, activity.id);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'Reply',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationBell extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateProvider).value;
+    if (user == null) {
+      return IconButton(
+        icon: const Icon(Icons.notifications_none_rounded),
+        onPressed: () => context.push('/notifications'),
+      );
+    }
+
+    final unreadCountAsync = ref.watch(unreadNotificationsCountProvider(user.uid));
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded),
+          onPressed: () => context.push('/notifications'),
+        ),
+        unreadCountAsync.when(
+          data: (count) {
+            if (count == 0) return const SizedBox.shrink();
+            return Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: AppColors.error,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  count > 9 ? '9+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+        ),
+      ],
+    );
   }
 }

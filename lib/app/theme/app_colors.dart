@@ -27,6 +27,7 @@ class AppColors {
   static const Color watched = Color(0xFF4CAF50);         // Green - Watched
   static const Color pending = Color(0xFF42A5F5);         // Blue - Pending
   static const Color abandoned = Color(0xFFEF5350);       // Red - Abandoned
+  static const Color error = Color(0xFFEF5350);           // Red - Error / Likes
   static const Color watching = Color(0xFFAB47BC);        // Purple - Watching
 
   // ─── Rating Colors ────────────────────────────────────────

@@ -5,6 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../shared/widgets/movie_card.dart';
 import '../../../core/constants/responsive_helper.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/models/comment.dart';
 import '../../movie_detail/data/movie_repository.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/shared_list_repository.dart';
@@ -412,10 +414,10 @@ class _CommentTile extends ConsumerWidget {
           CircleAvatar(
             radius: 16,
             backgroundColor: AppColors.surface,
-            backgroundImage: comment.userPhotoUrl != null
-                ? NetworkImage(comment.userPhotoUrl!)
+            backgroundImage: comment.userAvatar != null
+                ? NetworkImage(comment.userAvatar!)
                 : null,
-            child: comment.userPhotoUrl == null
+            child: comment.userAvatar == null
                 ? Text(
                     comment.userName.isNotEmpty
                         ? comment.userName[0].toUpperCase()
@@ -559,7 +561,7 @@ class _CommentInputBarState extends ConsumerState<_CommentInputBar> {
               id: '',
               userId: widget.userId,
               userName: widget.userName,
-              userPhotoUrl: widget.userPhotoUrl,
+              userAvatar: widget.userPhotoUrl,
               text: text,
               createdAt: DateTime.now(),
             ),

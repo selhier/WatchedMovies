@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/firestore_paths.dart';
+import '../../../core/models/comment.dart';
 import '../../auth/data/auth_repository.dart';
 
 // ═══════════════════════════════════════════════════════════════
@@ -78,46 +80,7 @@ class SharedList {
   bool isLikedBy(String userId) => likedBy.contains(userId);
 }
 
-/// Comment on a shared list
-class Comment {
-  final String id;
-  final String userId;
-  final String userName;
-  final String? userPhotoUrl;
-  final String text;
-  final DateTime createdAt;
 
-  const Comment({
-    required this.id,
-    required this.userId,
-    required this.userName,
-    this.userPhotoUrl,
-    required this.text,
-    required this.createdAt,
-  });
-
-  factory Comment.fromFirestore(Map<String, dynamic> data, String id) {
-    return Comment(
-      id: id,
-      userId: data['userId'] as String? ?? '',
-      userName: data['userName'] as String? ?? 'Anonymous',
-      userPhotoUrl: data['userPhotoUrl'] as String?,
-      text: data['text'] as String? ?? '',
-      createdAt:
-          (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'userId': userId,
-      'userName': userName,
-      'userPhotoUrl': userPhotoUrl,
-      'text': text,
-      'createdAt': Timestamp.fromDate(createdAt),
-    };
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════
 // Providers
@@ -280,6 +243,26 @@ class SharedListRepository {
           'likedBy': FieldValue.arrayUnion([userId]),
           'likesCount': FieldValue.increment(1),
         });
+        
+        // Trigger notification
+        final ownerId = data['ownerId'] as String?;
+        if (ownerId != null && userId != ownerId) {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            final notifRef = _firestore.collection(FirestorePaths.notifications(ownerId)).doc();
+            transaction.set(notifRef, {
+              'userId': ownerId,
+              'actorId': userId,
+              'actorName': currentUser.displayName ?? 'Someone',
+              'actorAvatar': currentUser.photoURL,
+              'type': 'likeList',
+              'referenceId': listId,
+              'referenceTitle': data['title'] as String?,
+              'isRead': false,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
       }
     });
   }
@@ -291,6 +274,28 @@ class SharedListRepository {
     await _firestore
         .collection(FirestorePaths.sharedListComments(listId))
         .add(comment.toFirestore());
+
+    // Trigger notification
+    final doc = await _firestore.collection(FirestorePaths.sharedLists).doc(listId).get();
+    if (doc.exists) {
+      final ownerId = doc.data()?['ownerId'] as String?;
+      final listTitle = doc.data()?['title'] as String?;
+      if (ownerId != null && comment.userId != ownerId) {
+        final notifRef = _firestore.collection(FirestorePaths.notifications(ownerId)).doc();
+        await notifRef.set({
+          'userId': ownerId,
+          'actorId': comment.userId,
+          'actorName': comment.userName,
+          'actorAvatar': comment.userAvatar,
+          'type': 'commentList',
+          'referenceId': listId,
+          'referenceTitle': listTitle,
+          'message': comment.text,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
   }
 
   /// Watch comments for a shared list (real-time, newest first)

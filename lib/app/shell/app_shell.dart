@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
+import '../../features/auth/data/auth_repository.dart';
+import '../../features/notifications/data/notification_repository.dart';
 
 /// Adaptive app shell with bottom navigation (mobile) or side navigation rail (web/tablet)
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerStatefulWidget {
   final Widget child;
 
   const AppShell({super.key, required this.child});
+
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
 
   static const _navItems = [
     _NavItem(icon: Icons.home_rounded, label: 'Home', path: '/'),
@@ -75,7 +84,7 @@ class AppShell extends StatelessWidget {
                   .toList(),
             ),
             Container(width: 1, color: AppColors.divider),
-            Expanded(child: child),
+            Expanded(child: widget.child),
           ],
         ),
       );
@@ -84,7 +93,7 @@ class AppShell extends StatelessWidget {
     // Bottom navigation for mobile
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: child,
+      body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(

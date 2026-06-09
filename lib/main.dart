@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app/app.dart';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -33,6 +35,15 @@ void main() async {
       authDomain: 'watchedmovies-394dc.firebaseapp.com',
     ),
   );
+
+  try {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  } catch (e) {
+    debugPrint('Persistence could not be enabled: $e');
+  }
 
   runApp(
     EasyLocalization(

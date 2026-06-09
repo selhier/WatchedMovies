@@ -10,6 +10,8 @@ import '../../../core/models/movie_entry.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../my_lists/data/list_repository.dart';
 import '../../shared_list/data/shared_list_repository.dart';
+import '../data/user_profile_repository.dart';
+import 'top_4_favorites.dart';
 import '../../../core/providers/language_provider.dart';
 
 /// Profile screen with user info, stats, and shared lists
@@ -21,6 +23,7 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
     final entries = ref.watch(movieEntriesStreamProvider);
     final sharedLists = ref.watch(mySharedListsProvider);
+    final userProfileAsync = user != null ? ref.watch(userProfileProvider(user.uid)) : null;
 
     if (user == null) return const SizedBox();
 
@@ -135,10 +138,55 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+                ],
+              ),
             )
                 .animate()
                 .fadeIn(duration: 400.ms)
                 .slideY(begin: 0.1, end: 0),
+
+            // Badges
+            if (userProfileAsync != null)
+              userProfileAsync.when(
+                data: (profile) {
+                  if (profile == null || profile.badges.isEmpty) return const SizedBox();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: profile.badges.map((badge) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.military_tech_rounded, size: 16, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                badge,
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ).animate().fadeIn().scale(),
+                  );
+                },
+                loading: () => const SizedBox(),
+                error: (_, __) => const SizedBox(),
+              ),
 
             const SizedBox(height: 20),
 
@@ -171,6 +219,20 @@ class ProfileScreen extends ConsumerWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Top 4 Favorites
+                    if (userProfileAsync != null)
+                      userProfileAsync.when(
+                        data: (profile) {
+                          if (profile == null) return const SizedBox();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            child: Top4Favorites(profile: profile, allEntries: allEntries),
+                          ).animate().fadeIn(delay: 100.ms, duration: 400.ms);
+                        },
+                        loading: () => const SizedBox(),
+                        error: (_, __) => const SizedBox(),
+                      ),
+
                     // Stats cards
                     GridView.count(
                       shrinkWrap: true,

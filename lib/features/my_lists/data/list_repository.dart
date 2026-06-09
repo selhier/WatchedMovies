@@ -184,6 +184,7 @@ class ListRepository {
           movieTitle: movie.title,
           movieId: movie.id,
           posterPath: movie.posterPath,
+          review: review,
           createdAt: now,
         ));
       }
@@ -198,6 +199,7 @@ class ListRepository {
           movieId: movie.id,
           posterPath: movie.posterPath,
           score: score,
+          review: review,
           createdAt: now,
         ));
       }
@@ -242,6 +244,7 @@ class ListRepository {
           movieTitle: movieTitle,
           movieId: tmdbId,
           posterPath: posterPath,
+          review: review,
           createdAt: now,
         ));
       }
@@ -256,6 +259,7 @@ class ListRepository {
           movieId: tmdbId,
           posterPath: posterPath,
           score: score,
+          review: review,
           createdAt: now,
         ));
       }

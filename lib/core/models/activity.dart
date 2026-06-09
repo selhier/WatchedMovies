@@ -19,9 +19,12 @@ class Activity {
   final int? movieId;
   final String? posterPath;
   final int? score;
+  final String? review;
   final String? listTitle;
   final String? listId;
   final DateTime createdAt;
+  final int likesCount;
+  final List<String> likedBy;
 
   const Activity({
     required this.id,
@@ -33,9 +36,12 @@ class Activity {
     this.movieId,
     this.posterPath,
     this.score,
+    this.review,
     this.listTitle,
     this.listId,
     required this.createdAt,
+    this.likesCount = 0,
+    this.likedBy = const [],
   });
 
   factory Activity.fromFirestore(Map<String, dynamic> data, String id) {
@@ -52,10 +58,13 @@ class Activity {
       movieId: data['movieId'] as int?,
       posterPath: data['posterPath'] as String?,
       score: data['score'] as int?,
+      review: data['review'] as String?,
       listTitle: data['listTitle'] as String?,
       listId: data['listId'] as String?,
       createdAt:
           (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      likesCount: data['likesCount'] as int? ?? 0,
+      likedBy: List<String>.from(data['likedBy'] ?? []),
     );
   }
 
@@ -69,9 +78,12 @@ class Activity {
       'movieId': movieId,
       'posterPath': posterPath,
       'score': score,
+      'review': review,
       'listTitle': listTitle,
       'listId': listId,
       'createdAt': Timestamp.fromDate(createdAt),
+      'likesCount': likesCount,
+      'likedBy': likedBy,
     };
   }
 

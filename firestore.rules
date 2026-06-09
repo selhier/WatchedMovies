@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función auxiliar para verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // ─── USUARIOS Y PERFILES ───────────────────────────────────────────────
+    match /users/{userId} {
+      // Un usuario solo puede escribir su propio perfil principal
+      allow read: if true;
+      allow write: if request.auth.uid == userId;
+      
+      match /movieEntries/{tmdbId} {
+        // Un usuario solo puede leer y escribir sus propias películas
+        allow read, write: if request.auth.uid == userId;
+      }
+      
+      // Seguidores y Siguiendo
+      match /following/{targetUid} {
+        allow read: if true;
+        allow write: if request.auth.uid == userId;
+      }
+      
+      match /followers/{sourceUid} {
+        allow read: if true;
+        // Permite a sourceUid agregarse a sí mismo como seguidor de userId
+        allow write: if request.auth.uid == sourceUid;
+      }
+      
+      // Notificaciones
+      match /notifications/{notifId} {
+        // Solo el dueño puede leer y marcar como leídas sus propias notificaciones
+        allow read, update, delete: if request.auth.uid == userId;
+        // Cualquiera autenticado puede crearle una notificación a alguien
+        allow create: if isAuthenticated();
+      }
+    }
+
+    // ─── LISTAS COMPARTIDAS Y COMENTARIOS ──────────────────────────────────
+    match /sharedLists/{listId} {
+      // Cualquiera puede leer listas públicas
+      allow read: if resource.data.isPublic == true || request.auth.uid == resource.data.ownerId;
+      
+      // Solo el creador puede crear y borrar
+      allow create: if request.auth.uid == request.resource.data.ownerId;
+      allow delete: if request.auth.uid == resource.data.ownerId;
+      
+      // Para actualizar: 
+      // 1. El creador puede actualizar todo
+      // 2. Otros usuarios autenticados SOLO pueden actualizar los campos likedBy y likesCount
+      allow update: if request.auth.uid == resource.data.ownerId || 
+                    (isAuthenticated() && 
+                     request.resource.data.diff(resource.data).affectedKeys()
+                     .hasOnly(['likedBy', 'likesCount']));
+
+      // Comentarios dentro de la lista
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+        allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+        allow update: if false;
+      }
+    }
+
+    // ─── FEED DE LA COMUNIDAD Y COMENTARIOS ────────────────────────────────
+    match /communityFeed/{activityId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      
+      // Permitir actualizar likedBy y likesCount para dar like a actividades
+      allow update: if isAuthenticated() && 
+                    request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['likedBy', 'likesCount']);
+      
+      allow delete: if false;
+
+      // Comentarios dentro de la actividad
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+        allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+        allow update: if false;
+      }
+    }
+  }
+}
